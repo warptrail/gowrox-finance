@@ -11,7 +11,9 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     Boolean,
-    Text
+    Text,
+    Column,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -124,7 +126,7 @@ class Category(Base):
         index=True,
     )
 
-    name: Mapped[str] = mapped_column(String(120), index=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False, unique=True, index=True)
 
     # Drives analytics behavior:
     # - "auto": normal behavior (amount<0 counts as spending, amount>0 counts as income)
@@ -172,12 +174,12 @@ class TransactionCategory(Base):
     category: Mapped["Category"] = relationship(back_populates="txn_links")
 
 
+# tags ========================
+
 class Tag(Base):
     __tablename__ = "tags"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(80), unique=True, index=True)
-
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False, unique=True, index=True)  # unique tag names
 
 class TransactionTag(Base):
     __tablename__ = "transaction_tags"
@@ -186,20 +188,21 @@ class TransactionTag(Base):
         ForeignKey("transactions.id", ondelete="CASCADE"),
         primary_key=True,
     )
+
     tag_id: Mapped[int] = mapped_column(
         ForeignKey("tags.id", ondelete="CASCADE"),
         primary_key=True,
     )
 
-    created_at: Mapped[datetime] = mapped_column(
+    tagged_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
         nullable=False,
     )
 
+    # Optional but useful ORM navigation
     txn: Mapped["Transaction"] = relationship()
     tag: Mapped["Tag"] = relationship()
-
 
 class TransactionNote(Base):
     __tablename__ = "transaction_notes"
@@ -224,3 +227,4 @@ class TransactionNote(Base):
 # Helpful indexes for filtering / joins
 Index("ix_txn_categories_category_id", TransactionCategory.category_id)
 Index("ix_txn_tags_tag_id", TransactionTag.tag_id)
+Index("ix_txn_notes_updated_at", TransactionNote.updated_at)

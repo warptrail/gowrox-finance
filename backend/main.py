@@ -6,17 +6,19 @@ from db import engine, Base
 # New router import paths (after moving routers into api/routers)
 from api.routers.snapshots import router as snapshots_router
 from api.routers.transactions import router as transactions_router
-from api.routers.classification import router as classification_router
+from api.routers.taxonomy import router as taxonomy_router
+from api.routers.notes import router as notes_router
 from api.routers.analytics import router as analytics_router
 
 
 
 app = FastAPI(title="Gowrox Finance API")
 
-app.include_router(transactions_router)
 app.include_router(snapshots_router)
-app.include_router(classification_router)
+app.include_router(transactions_router)
+app.include_router(taxonomy_router)
 app.include_router(analytics_router)
+app.include_router(notes_router)
 
 # Allow the frontend to talk to this backend (adjust later if needed)
 app.add_middleware(
