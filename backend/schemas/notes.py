@@ -12,3 +12,10 @@ class NoteOut(BaseModel):
     txn_id: int
     note: str
     updated_at: datetime
+
+
+class NoteMutationOut(BaseModel):
+    ok: bool = True
+    message: str
+    created: bool
+    data: NoteOut

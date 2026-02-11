@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models import Transaction, TransactionNote
 
 
-async def upsert_note(session: AsyncSession, *, txn_id: int, note: str) -> TransactionNote:
+async def upsert_note(session: AsyncSession, *, txn_id: int, note: str) -> tuple[TransactionNote, bool]:
     # Ensure txn exists
     exists = (
         await session.execute(select(Transaction.id).where(Transaction.id == txn_id).limit(1))
@@ -22,11 +22,11 @@ async def upsert_note(session: AsyncSession, *, txn_id: int, note: str) -> Trans
         row = TransactionNote(txn_id=txn_id, note=note)
         session.add(row)
         await session.flush()
-        return row
+        return row, True
 
     row.note = note  # triggers onupdate(updated_at)
     await session.flush()
-    return row
+    return row, False
 
 
 async def get_note(session: AsyncSession, *, txn_id: int) -> TransactionNote | None:

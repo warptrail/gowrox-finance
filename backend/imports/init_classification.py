@@ -13,7 +13,7 @@ from imports.schema_bootstrap import apply_schema_bootstrap
 
 
 TAXONOMY: list[dict[str, object]] = [
-    {"group": "Unclassified", "categories": ["Uncategorized"]},
+    {"group": "Unclassified", "categories": ["Uncategorized", "Deleted Category"]},
 
     {"group": "Income", "categories": [
         "Wages",

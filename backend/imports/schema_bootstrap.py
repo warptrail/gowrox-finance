@@ -43,6 +43,61 @@ SQL_STATEMENTS: list[str] = [
     # This MUST be txn_id (PK) in your schema, not transaction_id.
     "CREATE INDEX IF NOT EXISTS ix_transaction_categories_txn_id ON transaction_categories(txn_id);",
     "CREATE INDEX IF NOT EXISTS ix_transaction_categories_category_id ON transaction_categories(category_id);",
+
+    # --- Protected taxonomy categories cannot be deleted --------------------
+    """
+    CREATE TRIGGER IF NOT EXISTS trg_categories_protect_sentinel_delete
+    BEFORE DELETE ON categories
+    FOR EACH ROW
+    WHEN EXISTS (
+      SELECT 1
+      FROM groups g
+      WHERE g.id = OLD.group_id
+        AND g.name = 'Unclassified'
+        AND OLD.name IN ('Deleted Category', 'Uncategorized')
+    )
+    BEGIN
+      SELECT RAISE(ABORT, 'protected category cannot be deleted');
+    END;
+    """,
+
+    """
+    CREATE TRIGGER IF NOT EXISTS trg_categories_protect_sentinel_update
+    BEFORE UPDATE ON categories
+    FOR EACH ROW
+    WHEN OLD.group_id = 1
+      AND OLD.name IN ('Deleted Category', 'Uncategorized')
+    BEGIN
+      SELECT RAISE(ABORT, 'protected category cannot be updated');
+    END;
+    """,
+
+    # --- Ensure every transaction has a category assignment -----------------
+    """
+    CREATE TRIGGER IF NOT EXISTS trg_transactions_default_uncategorized
+    AFTER INSERT ON transactions
+    FOR EACH ROW
+    WHEN NOT EXISTS (SELECT 1 FROM transaction_categories tc WHERE tc.txn_id = NEW.id)
+    BEGIN
+      INSERT INTO transaction_categories (txn_id, category_id, assigned_at)
+      SELECT NEW.id, c.id, CURRENT_TIMESTAMP
+      FROM categories c
+      JOIN groups g ON g.id = c.group_id
+      WHERE g.name = 'Unclassified' AND c.name = 'Uncategorized'
+      LIMIT 1;
+    END;
+    """,
+
+    # Backfill existing transactions missing category assignment (idempotent).
+    """
+    INSERT INTO transaction_categories (txn_id, category_id, assigned_at)
+    SELECT t.id, c.id, CURRENT_TIMESTAMP
+    FROM transactions t
+    JOIN groups g ON g.name = 'Unclassified'
+    JOIN categories c ON c.group_id = g.id AND c.name = 'Uncategorized'
+    LEFT JOIN transaction_categories tc ON tc.txn_id = t.id
+    WHERE tc.txn_id IS NULL;
+    """,
 ]
 
 async def apply_schema_bootstrap(engine: AsyncEngine) -> None:
